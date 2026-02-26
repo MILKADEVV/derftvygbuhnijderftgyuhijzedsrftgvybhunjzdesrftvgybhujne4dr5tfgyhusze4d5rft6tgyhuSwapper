@@ -12,7 +12,7 @@ local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
 local Title = "Milka Skin Swapper"
-local FileNames = {"SkinSwapper", "Settings.json"}
+local FileNames = {"SkinSwapper", "Settings.json", "Key.txt"}
 local Typing, ServiceConnections = false, {}
 local Rayfield = nil
 local Window = nil
@@ -23,7 +23,8 @@ Environment.Settings = {
 SendNotifications = true,
 SaveSettings = true,
 ReloadOnTeleport = true,
-Enabled = true
+Enabled = true,
+KeySaved = false
 }
 local function Encode(Table)
 if Table and type(Table) == "table" then
@@ -78,6 +79,27 @@ writefile(Title.."/"..FileNames[1].."/"..FileNames[2], Encode(Environment.Settin
 end
 end
 end
+local function SaveKey()
+if not isfolder(Title) then
+makefolder(Title)
+end
+if not isfolder(Title.."/"..FileNames[1]) then
+makefolder(Title.."/"..FileNames[1])
+end
+writefile(Title.."/"..FileNames[1].."/"..FileNames[3], "MilkaSwapper")
+Environment.Settings.KeySaved = true
+SaveSettings()
+end
+local function LoadKey()
+if isfile(Title.."/"..FileNames[1].."/"..FileNames[3]) then
+local savedKey = readfile(Title.."/"..FileNames[1].."/"..FileNames[3])
+if savedKey == "MilkaSwapper" then
+Environment.Settings.KeySaved = true
+return true
+end
+end
+return false
+end
 coroutine.wrap(function()
 while task.wait(30) and Environment.Settings.SaveSettings do
 SaveSettings()
@@ -90,6 +112,7 @@ ServiceConnections.TypingEndedConnection = UserInputService.TextBoxFocusReleased
 Typing = false
 end)
 LoadSettings()
+local keyValid = LoadKey()
 Environment.Functions = {}
 function Environment.Functions:Exit()
 SaveSettings()
@@ -158,17 +181,28 @@ return
 end
 until LocalPlayer and LocalPlayer.PlayerScripts
 ScriptLoaded = true
-local success, rayfieldResult = pcall(function()
-return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-end)
-if not success then
-SendNotification(Title, "Failed to load Rayfield UI", 5)
-ScriptLoaded = false
-return
+Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local keySettings = {
+Title = "Key System",
+Subtitle = "Enter the key to access the script",
+Note = "The key is MilkaSwapper",
+FileName = "MilkaSwapper",
+SaveKey = false,
+GrabKeyFromSite = false,
+Key = {"MilkaSwapper"}
+}
+if keyValid then
+keySettings = {
+Title = "Key System",
+Subtitle = "Key already saved!",
+Note = "Loading...",
+FileName = "MilkaSwapper",
+SaveKey = false,
+GrabKeyFromSite = false,
+Key = {"MilkaSwapper"}
+}
 end
-Rayfield = rayfieldResult
-success, Window = pcall(function()
-return Rayfield:CreateWindow({
+Window = Rayfield:CreateWindow({
 Name = "Milka Rivals Skin Swapper",
 Icon = 0,
 LoadingTitle = "Milka Rivals Skin Swapper",
@@ -186,22 +220,15 @@ Enabled = true,
 Invite = "BaDZhFq3GT",
 RememberJoins = true
 },
-KeySystem = true,
-KeySettings = {
-Title = "Key System",
-Subtitle = "Enter the key to access the script",
-Note = "The key is MilkaSwapper",
-FileName = "MilkaSwapper",
-SaveKey = false,
-GrabKeyFromSite = false,
-Key = {"MilkaSwapper"}
-}
+KeySystem = not keyValid,
+KeySettings = keySettings
 })
-end)
-if not success then
-SendNotification(Title, "Failed to create window", 5)
-ScriptLoaded = false
-return
+if not keyValid then
+task.wait(2)
+if Window then
+SaveKey()
+SendNotification(Title, "Key saved permanently! You won't need to enter it again.", 3)
+end
 end
 Rayfield:Notify({
 Title = "Rivals Skin Swapper",
@@ -620,11 +647,12 @@ local infoTab = Window:CreateTab("Info", nil)
 local infoSection = infoTab:CreateSection("About")
 infoTab:CreateParagraph({
 Title = "Rivals Skin Swapper",
-Content = "Made by Milka\nDiscord: discord.gg/BaDZhFq3GT\nKey: MilkaSwapper\n\n" ..
+Content = "Made by Milka\nDiscord: discord.gg/BaDZhFq3GT\nKey: MilkaSwapper (saved permanently)\n\n" ..
 "✅ ALL weapons included (40+ weapons)\n" ..
 "✅ ALL skins included (300+ skins)\n" ..
 "✅ Auto-reload on teleport\n" ..
 "✅ Multiple process prevention\n" ..
+"✅ Key saved permanently\n" ..
 "Update Soon..."
 })
 infoTab:CreateButton({
@@ -641,9 +669,25 @@ Duration = 2
 end
 end
 })
+infoTab:CreateButton({
+Name = "Reset Key (if needed)",
+Callback = function()
+if isfile(Title.."/"..FileNames[1].."/"..FileNames[3]) then
+delfile(Title.."/"..FileNames[1].."/"..FileNames[3])
+Environment.Settings.KeySaved = false
+keyValid = false
+SaveSettings()
+Rayfield:Notify({
+Title = "Key Reset",
+Content = "Key has been reset. Restart script to re-enter key.",
+Duration = 3
+})
+end
+end
+})
 Rayfield:Notify({
 Title = "Rivals Skin Swapper",
-Content = "Made by Milka | Key: MilkaSwapper | 40+ weapons | 300+ skins!",
+Content = "Made by Milka | Key saved permanently!",
 Duration = 5
 })
 print("=== Milka Skin Swapper Loaded ===")
@@ -651,21 +695,24 @@ print("Made by Milka")
 print("Discord: discord.gg/BaDZhFq3GT")
 print("Total weapons: " .. table.count(Skins))
 print("Auto-reload on teleport: Enabled")
+print("Key saved permanently: " .. tostring(Environment.Settings.KeySaved))
 end
 if not getgenv then
 SendNotification(Title, "Your exploit does not support this script", 3)
 return
 end
+if keyValid then
+SendNotification(Title, "Key verified! Loading script...", 2)
 coroutine.wrap(function()
-task.wait(3)
-if not ScriptLoaded then
-local success, err = pcall(LoadMainScript)
-if not success then
-SendNotification(Title, "Error loading script: " .. tostring(err), 5)
-ScriptLoaded = false
-end
-end
+task.wait(1)
+LoadMainScript()
 end)()
+else
+coroutine.wrap(function()
+task.wait(1)
+LoadMainScript()
+end)()
+end
 UserInputService.InputBegan:Connect(function(Input, GameProcessed)
 if not GameProcessed and not Typing then
 if Input.KeyCode == Enum.KeyCode.Insert then
